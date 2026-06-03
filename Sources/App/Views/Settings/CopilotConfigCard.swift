@@ -22,6 +22,7 @@ struct CopilotConfigCard: View {
     @State private var copilotManualUsageInputError: String?
     @State private var copilotApiReturnedEmpty: Bool = false
     @State private var copilotProbeMode: CopilotProbeMode = .billing
+    @State private var copilotOnDemandBudgetInput: String = ""
     @State private var isTestingCopilot = false
     @State private var copilotTestResult: String?
 
@@ -76,6 +77,9 @@ struct CopilotConfigCard: View {
             copilotMonthlyLimit = settings.copilot.copilotMonthlyLimit() ?? 50
             copilotManualOverrideEnabled = settings.copilot.copilotManualOverrideEnabled()
             copilotApiReturnedEmpty = settings.copilot.copilotApiReturnedEmpty()
+            if let budget = settings.copilot.copilotOnDemandBudget() {
+                copilotOnDemandBudgetInput = String(format: "%.2f", budget)
+            }
             if let value = settings.copilot.copilotManualUsageValue() {
                 let isPercent = settings.copilot.copilotManualUsageIsPercent()
                 if isPercent {
@@ -341,6 +345,40 @@ struct CopilotConfigCard: View {
                     }
 
                     Text("Note: This is for AI credits, not code completions")
+                        .font(.system(size: 9, weight: .medium, design: theme.fontDesign))
+                        .foregroundStyle(theme.textTertiary)
+                }
+
+                // On-demand spend budget
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("ON-DEMAND BUDGET (OPTIONAL)")
+                        .font(.system(size: 9, weight: .semibold, design: theme.fontDesign))
+                        .foregroundStyle(theme.textSecondary)
+                        .tracking(0.5)
+
+                    TextField("", text: $copilotOnDemandBudgetInput, prompt: Text("e.g. 10.00").foregroundStyle(theme.textTertiary))
+                        .font(.system(size: 12, weight: .medium, design: theme.fontDesign))
+                        .foregroundStyle(theme.textPrimary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(theme.glassBackground)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(theme.glassBorder, lineWidth: 1)
+                                )
+                        )
+                        .onChange(of: copilotOnDemandBudgetInput) { _, newValue in
+                            let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                            if trimmed.isEmpty {
+                                settings.copilot.setCopilotOnDemandBudget(nil)
+                            } else if let value = Double(trimmed), value > 0 {
+                                settings.copilot.setCopilotOnDemandBudget(value)
+                            }
+                        }
+
+                    Text("Shows a progress bar on the on-demand spend card. Leave blank to hide.")
                         .font(.system(size: 9, weight: .medium, design: theme.fontDesign))
                         .foregroundStyle(theme.textTertiary)
                 }

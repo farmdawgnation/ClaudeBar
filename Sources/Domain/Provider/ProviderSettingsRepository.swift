@@ -95,6 +95,14 @@ public protocol CopilotSettingsRepository: ProviderSettingsRepository {
     /// Sets whether the API returned empty data
     func setCopilotApiReturnedEmpty(_ empty: Bool)
 
+    // MARK: - On-Demand Budget
+
+    /// Gets the optional on-demand spend budget cap in dollars (nil = no budget set)
+    func copilotOnDemandBudget() -> Double?
+
+    /// Sets the on-demand spend budget cap in dollars (nil to remove)
+    func setCopilotOnDemandBudget(_ value: Double?)
+
     // MARK: - Usage Period Tracking
 
     /// Gets the last known usage period month (1-12)

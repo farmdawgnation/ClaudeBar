@@ -947,4 +947,139 @@ struct CopilotUsageProbeTests {
         let expected = MonthlyResetDate.nextMonthlyResetDate(referenceDate: snapshot.capturedAt)
         #expect(quota.resetsAt == expected)
     }
+
+    // MARK: - On-Demand Spend Tests
+
+    @Test
+    func `probe includes on-demand spend metric when netAmount is non-zero`() async throws {
+        let settings = makeSettingsRepository(username: "testuser", hasToken: true)
+        let mockNetwork = MockNetworkClient()
+        let responseJSON = """
+        {
+          "timePeriod": { "year": 2026, "month": 6 },
+          "user": "testuser",
+          "usageItems": [
+            {
+              "product": "Copilot",
+              "sku": "Copilot Premium Request",
+              "model": "GPT-4o",
+              "grossQuantity": 60.0,
+              "netQuantity": 10.0,
+              "netAmount": 0.40
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let response = makeHTTPResponse(statusCode: 200)
+        given(mockNetwork).request(.any).willReturn((responseJSON, response))
+
+        let probe = CopilotUsageProbe(networkClient: mockNetwork, settingsRepository: settings)
+        let snapshot = try await probe.probe()
+
+        let metric = try #require(snapshot.extensionMetrics?.first)
+        #expect(metric.label == "On-Demand Spend")
+        #expect(metric.value == "$0.40")
+        #expect(metric.unit == "this month")
+        #expect(metric.icon == "dollarsign.circle.fill")
+        #expect(metric.progress == nil)
+    }
+
+    @Test
+    func `probe includes progress on spend metric when budget is configured`() async throws {
+        let settings = makeSettingsRepository(username: "testuser", hasToken: true)
+        settings.setCopilotOnDemandBudget(10.0)
+        let mockNetwork = MockNetworkClient()
+        let responseJSON = """
+        {
+          "timePeriod": { "year": 2026, "month": 6 },
+          "user": "testuser",
+          "usageItems": [
+            {
+              "product": "Copilot",
+              "sku": "Copilot Premium Request",
+              "model": "GPT-4o",
+              "netAmount": 5.00
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let response = makeHTTPResponse(statusCode: 200)
+        given(mockNetwork).request(.any).willReturn((responseJSON, response))
+
+        let probe = CopilotUsageProbe(networkClient: mockNetwork, settingsRepository: settings)
+        let snapshot = try await probe.probe()
+
+        let metric = try #require(snapshot.extensionMetrics?.first)
+        #expect(metric.value == "$5.00")
+        let progress = try #require(metric.progress)
+        #expect(abs(progress - 0.5) < 0.001)
+    }
+
+    @Test
+    func `probe omits on-demand spend metric when netAmount is zero`() async throws {
+        let settings = makeSettingsRepository(username: "testuser", hasToken: true)
+        let mockNetwork = MockNetworkClient()
+        let responseJSON = """
+        {
+          "timePeriod": { "year": 2026, "month": 6 },
+          "user": "testuser",
+          "usageItems": [
+            {
+              "product": "Copilot",
+              "sku": "Copilot Premium Request",
+              "model": "Claude Sonnet 4",
+              "grossQuantity": 10.0,
+              "netAmount": 0.0
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let response = makeHTTPResponse(statusCode: 200)
+        given(mockNetwork).request(.any).willReturn((responseJSON, response))
+
+        let probe = CopilotUsageProbe(networkClient: mockNetwork, settingsRepository: settings)
+        let snapshot = try await probe.probe()
+
+        #expect(snapshot.extensionMetrics == nil || snapshot.extensionMetrics?.isEmpty == true)
+    }
+
+    @Test
+    func `probe sums netAmount across multiple copilot items`() async throws {
+        let settings = makeSettingsRepository(username: "testuser", hasToken: true)
+        let mockNetwork = MockNetworkClient()
+        let responseJSON = """
+        {
+          "timePeriod": { "year": 2026, "month": 6 },
+          "user": "testuser",
+          "usageItems": [
+            {
+              "product": "Copilot",
+              "model": "GPT-4o",
+              "netAmount": 1.20
+            },
+            {
+              "product": "Copilot",
+              "model": "Claude Sonnet 4",
+              "netAmount": 0.80
+            },
+            {
+              "product": "Actions",
+              "netAmount": 99.99
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let response = makeHTTPResponse(statusCode: 200)
+        given(mockNetwork).request(.any).willReturn((responseJSON, response))
+
+        let probe = CopilotUsageProbe(networkClient: mockNetwork, settingsRepository: settings)
+        let snapshot = try await probe.probe()
+
+        let metric = try #require(snapshot.extensionMetrics?.first)
+        #expect(metric.value == "$2.00")
+    }
 }

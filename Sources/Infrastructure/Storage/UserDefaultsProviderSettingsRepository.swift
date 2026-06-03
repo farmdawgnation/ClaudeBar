@@ -138,6 +138,24 @@ public final class UserDefaultsProviderSettingsRepository: ZaiSettingsRepository
         userDefaults.set(empty, forKey: Keys.copilotApiReturnedEmpty)
     }
 
+    // MARK: - CopilotSettingsRepository (On-Demand Budget)
+
+    public func copilotOnDemandBudget() -> Double? {
+        guard userDefaults.object(forKey: Keys.copilotOnDemandBudget) != nil else {
+            return nil
+        }
+        let value = userDefaults.double(forKey: Keys.copilotOnDemandBudget)
+        return value > 0 ? value : nil
+    }
+
+    public func setCopilotOnDemandBudget(_ value: Double?) {
+        if let value {
+            userDefaults.set(value, forKey: Keys.copilotOnDemandBudget)
+        } else {
+            userDefaults.removeObject(forKey: Keys.copilotOnDemandBudget)
+        }
+    }
+
     // MARK: - CopilotSettingsRepository (Usage Period)
 
     public func copilotLastUsagePeriodMonth() -> Int? {
@@ -402,6 +420,7 @@ public final class UserDefaultsProviderSettingsRepository: ZaiSettingsRepository
         static let copilotApiReturnedEmpty = "providerConfig.copilotApiReturnedEmpty"
         static let copilotLastUsagePeriodMonth = "providerConfig.copilotLastUsagePeriodMonth"
         static let copilotLastUsagePeriodYear = "providerConfig.copilotLastUsagePeriodYear"
+        static let copilotOnDemandBudget = "providerConfig.copilotOnDemandBudget"
         // Bedrock settings
         static let awsProfileName = "providerConfig.awsProfileName"
         static let bedrockRegions = "providerConfig.bedrockRegions"

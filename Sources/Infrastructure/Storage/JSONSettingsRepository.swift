@@ -333,6 +333,14 @@ public final class JSONSettingsRepository:
         store.write(value: year, key: "copilot.lastUsagePeriodYear")
     }
 
+    public func copilotOnDemandBudget() -> Double? {
+        store.read(key: "copilot.onDemandBudget")
+    }
+
+    public func setCopilotOnDemandBudget(_ value: Double?) {
+        store.write(value: value, key: "copilot.onDemandBudget")
+    }
+
     // Credentials (UserDefaults for now, Keychain migration later)
 
     public func saveGithubToken(_ token: String) {

@@ -250,11 +250,29 @@ public struct CopilotUsageProbe: UsageProbe {
             resetText: resetText
         )
 
+        // Build on-demand spend metric when there is billable spend
+        var extensionMetrics: [ExtensionMetric]? = nil
+        if totalNetAmount > 0 {
+            let formattedSpend = String(format: "$%.2f", totalNetAmount)
+            let budget = settingsRepository.copilotOnDemandBudget()
+            let progress = budget.map { totalNetAmount / $0 }
+            extensionMetrics = [
+                ExtensionMetric(
+                    label: "On-Demand Spend",
+                    value: formattedSpend,
+                    unit: "this month",
+                    icon: "dollarsign.circle.fill",
+                    progress: progress
+                )
+            ]
+        }
+
         return UsageSnapshot(
             providerId: "copilot",
             quotas: [quota],
             capturedAt: Date(),
-            accountEmail: username
+            accountEmail: username,
+            extensionMetrics: extensionMetrics
         )
     }
 }
